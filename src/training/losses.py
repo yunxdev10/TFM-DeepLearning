@@ -1,7 +1,8 @@
+from typing import List, Optional
+
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-from typing import Optional, List
 
 class FocalLoss(nn.Module):
     """
@@ -10,17 +11,23 @@ class FocalLoss(nn.Module):
     """
     def __init__(self, alpha: Optional[torch.Tensor] = None, gamma: float = 2.0, reduction: str = 'mean'):
         super(FocalLoss, self).__init__()
-        self.alpha = alpha
         self.gamma = gamma
         self.reduction = reduction
+        if alpha is None:
+            self.register_buffer("alpha", None)
+        else:
+            self.register_buffer("alpha", alpha.float())
 
     def forward(self, inputs: torch.Tensor, targets: torch.Tensor) -> torch.Tensor:
         # inputs: logits [B, C]
         # targets: labels [B]
-        
-        ce_loss = F.cross_entropy(inputs, targets, reduction='none', weight=self.alpha)
+
+        ce_loss = F.cross_entropy(inputs, targets, reduction='none')
         pt = torch.exp(-ce_loss)
         focal_loss = ((1 - pt) ** self.gamma) * ce_loss
+
+        if self.alpha is not None:
+            focal_loss = self.alpha[targets] * focal_loss
         
         if self.reduction == 'mean':
             return focal_loss.mean()

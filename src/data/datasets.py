@@ -3,7 +3,7 @@ from torch.utils.data import Dataset, WeightedRandomSampler
 from PIL import Image
 import pandas as pd
 from pathlib import Path
-from typing import Callable, Optional, List, Tuple
+from typing import Callable, Optional, List, Dict
 import numpy as np
 
 class CXRDataset(Dataset):
@@ -11,12 +11,15 @@ class CXRDataset(Dataset):
     Dataset for Kaggle COVID-19 Radiography Database.
     Assumes a dataframe with 'image_path' and 'label' columns.
     """
-    def __init__(self, df: pd.DataFrame, transform: Optional[Callable] = None):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        transform: Optional[Callable] = None,
+        label_map: Optional[Dict[str, int]] = None,
+    ):
         self.df = df
         self.transform = transform
-        
-        # Mapping labels to indices (example depending on actual data)
-        self.label_map = {name: idx for idx, name in enumerate(sorted(self.df['label'].unique()))}
+        self.label_map = label_map or {name: idx for idx, name in enumerate(sorted(self.df['label'].unique()))}
         
     def __len__(self):
         return len(self.df)
@@ -40,11 +43,15 @@ class CTDataset(Dataset):
     Dataset for MosMedData CT Scans.
     Assumes a dataframe with 'image_path' and 'label' columns.
     """
-    def __init__(self, df: pd.DataFrame, transform: Optional[Callable] = None):
+    def __init__(
+        self,
+        df: pd.DataFrame,
+        transform: Optional[Callable] = None,
+        label_map: Optional[Dict[str, int]] = None,
+    ):
         self.df = df
         self.transform = transform
-        
-        self.label_map = {name: idx for idx, name in enumerate(sorted(self.df['label'].unique()))}
+        self.label_map = label_map or {name: idx for idx, name in enumerate(sorted(self.df['label'].unique()))}
 
     def __len__(self):
         return len(self.df)

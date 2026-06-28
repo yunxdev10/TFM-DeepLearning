@@ -1,11 +1,11 @@
 # Plan TFM: Deep Learning Multi-modal para Diagnóstico y Explicabilidad de COVID-19
 
 ## TL;DR
-TFM que compara arquitecturas de deep learning (ResNet-50, DenseNet-121, EfficientNet-B0) sobre dos modalidades de imagen médica (radiografías de tórax y TC), incluyendo segmentación de lesiones con U-Net, análisis de explicabilidad (Grad-CAM, SHAP, LIME) y estrategias de manejo de desbalanceo de clases. Marco unificado con código modular en PyTorch.
+TFM que compara arquitecturas de deep learning (ResNet-50, DenseNet-121, EfficientNet-B0) sobre dos modalidades de imagen médica: radiografías de tórax (CXR, 4 clases) y tomografía computarizada (CT, 4 grupos tras fusionar CT-3 y CT-4 en CT-3+). Incluye segmentación pulmonar en CXR, segmentación de infección/lesión en CT, análisis de explicabilidad con Grad-CAM y estrategias de manejo de desbalanceo de clases. Marco unificado con código modular en PyTorch.
 
 **Título propuesto:** *"Clasificación, Segmentación y Explicabilidad de COVID-19 en Imagen Médica: Un Estudio Comparativo Multi-modal con Deep Learning"*
 
-**Plazo:** 20 abril – 30 junio 2026 (~10 semanas)
+**Plazo:** 20 abril – 31 agosto 2026 (~19 semanas)
 **Idioma:** Español
 **Recursos:** GPU local, nivel intermedio PyTorch
 
@@ -13,17 +13,17 @@ TFM que compara arquitecturas de deep learning (ResNet-50, DenseNet-121, Efficie
 
 ## Preguntas de Investigación
 
-**RQ Principal:** ¿En qué medida las arquitecturas de deep learning con transfer learning logran una clasificación fiable y explicable de COVID-19 en radiografías y TC, y cómo se compara su rendimiento entre modalidades?
+**RQ Principal:** ¿En qué medida las arquitecturas de deep learning con transfer learning logran una clasificación fiable y explicable de COVID-19 y patologías relacionadas en CXR y CT, considerando las diferencias clínicas, de etiquetas y de anotaciones disponibles entre modalidades?
 
 - **RQ1 (Transfer Learning):** ¿Qué arquitectura (ResNet-50, DenseNet-121, EfficientNet-B0) ofrece mejor balance accuracy/sensibilidad/eficiencia en cada modalidad?
-- **RQ2 (Cross-Modal):** ¿Cómo se compara el rendimiento entre CXR (4 clases) y CT (5 severidades) con arquitecturas y metodología equivalentes?
-- **RQ3 (Explicabilidad):** ¿Cuál método XAI (Grad-CAM, SHAP, LIME) produce visualizaciones más alineadas con regiones clínicamente relevantes?
-- **RQ4 (Segmentación):** ¿Qué variante de U-Net (vanilla, Attention, ResUNet) logra mejor segmentación de lesiones COVID?
+- **RQ2 (Cross-Modal):** ¿Cómo se compara el rendimiento entre CXR (4 clases: COVID, Lung Opacity, Normal, Viral Pneumonia) y CT (4 grupos de severidad: CT-0, CT-1, CT-2, CT-3+) usando arquitecturas y metodología equivalentes?
+- **RQ3 (Explicabilidad):** ¿En qué medida Grad-CAM produce explicaciones coherentes con las regiones anatómicas o patológicas disponibles: región pulmonar en CXR y lesiones/infección en CT?
+- **RQ4 (Segmentación):** ¿Qué variante de U-Net (vanilla, Attention, ResUNet) logra mejor segmentación en las tareas disponibles: segmentación pulmonar en CXR y segmentación de lesiones COVID en CT?
 - **RQ5 (Desbalanceo):** ¿Qué estrategia (focal loss, class weights, oversampling, augmentation) mejora más la sensibilidad en clases minoritarias?
 
 ---
 
-## FASE 0 — Setup y Refactorización (Semana 1: 20-27 abril)
+## FASE 0 — Setup y Refactorización (Semanas 1-2: 20 abril – 3 mayo)
 
 ### Paso 0.1: Estructura del proyecto
 - Crear estructura modular:
@@ -77,13 +77,14 @@ TFM que compara arquitecturas de deep learning (ResNet-50, DenseNet-121, Efficie
 - `notebooks/00_eda.ipynb` — nuevo
 
 **Verificación Fase 0:**
-- [ ] Datasets cargados correctamente con DataLoaders (print shapes y labels de 1 batch)
-- [ ] EDA notebook ejecutable de inicio a fin sin errores
-- [ ] Estructura `src/` importable desde notebooks (`from src.data import ...`)
+- [x] Datasets cargados correctamente con DataLoaders (CXR: batch 4×3×224×224; CT: batch 4×1×256×256)
+- [x] EDA notebook ejecutable de inicio a fin sin errores (`notebooks/00_eda.ipynb`)
+- [x] Estructura `src/` importable desde notebooks (`from src.data import ...`)
+- [x] CT preprocesado a slices 2D con metadata (`27.781` PNGs + `labels_metadata.csv`)
 
 ---
 
-## FASE 1 — Clasificación con Transfer Learning (Semanas 2-3: 28 abril – 11 mayo)
+## FASE 1 — Clasificación con Transfer Learning (Semanas 3-9: 4 mayo – 21 junio)
 
 ### Paso 1.1: Implementar modelos de clasificación
 - Wrappers en `src/models/classifiers.py` para:
@@ -148,7 +149,7 @@ TFM que compara arquitecturas de deep learning (ResNet-50, DenseNet-121, Efficie
 
 ---
 
-## FASE 2 — Segmentación de Lesiones (Semanas 4-5: 12-25 mayo)
+## FASE 2 — Segmentación Pulmonar y de Lesiones (Semanas 10-11: 22 junio – 5 julio)
 
 ### Paso 2.1: Implementar modelos de segmentación
 - En `src/models/segmentation.py`:
@@ -172,7 +173,9 @@ TFM que compara arquitecturas de deep learning (ResNet-50, DenseNet-121, Efficie
 ### Paso 2.4: Evaluación de segmentación (RQ4)
 - Visualización: imagen original → ground truth → predicción (3 columnas)
 - Tabla comparativa: U-Net vs Attention U-Net × CXR vs CT
-- Análisis cualitativo: ¿las segmentaciones capturan las zonas de opacidad en vidrio esmerilado?
+- Análisis cualitativo separado por modalidad:
+  - CXR: ¿la segmentación delimita de forma estable el campo pulmonar?
+  - CT: ¿la segmentación captura regiones de infección compatibles con lesiones COVID?
 
 **Archivos a crear:**
 - `src/models/segmentation.py`
@@ -185,28 +188,29 @@ TFM que compara arquitecturas de deep learning (ResNet-50, DenseNet-121, Efficie
 
 ---
 
-## FASE 3 — Explicabilidad (Semanas 5-6: 25 mayo – 8 junio)
+## FASE 3 — Explicabilidad (Semanas 12-13: 6-19 julio)
 
-*Paralela parcialmente con final de Fase 2*
+*Paralela parcialmente con el cierre de Fase 2 si los modelos finales ya están guardados.*
 
 ### Paso 3.1: Implementar métodos XAI
 - En `src/evaluation/explainability.py`:
-  - **Grad-CAM**: usando `pytorch-grad-cam` sobre última capa convolucional
-  - **LIME**: usando `lime` (LimeImageExplainer) con superpixels
-  - **SHAP**: usando `shap` (DeepExplainer o GradientExplainer)
+  - **Grad-CAM**: implementado en PyTorch sobre la última capa convolucional.
+  - **LIME/SHAP**: quedan como extensión opcional no incluida en el alcance final para evitar dependencias adicionales y coste computacional que no aportan a la conclusión principal.
 
 ### Paso 3.2: Generar visualizaciones XAI
 - Notebook `notebooks/06_explainability.ipynb`:
-  - Seleccionar N=50 imágenes representativas por clase (correctas e incorrectas)
-  - Aplicar Grad-CAM, LIME, SHAP al mejor modelo de cada modalidad
-  - Grid comparativo: Original | Grad-CAM | LIME | SHAP (por fila)
+  - Seleccionar imágenes representativas por clase (correctas e incorrectas).
+  - Aplicar Grad-CAM al mejor modelo de cada modalidad y al modelo CT alternativo de mayor accuracy.
+  - Grid cualitativo: Original | Máscara | Grad-CAM | Saliencia binaria | Máscara vs saliencia.
 
 ### Paso 3.3: Evaluación cuantitativa de XAI (RQ3) — **Contribución novedosa**
-- Calcular **IoU entre mapa de saliencia y máscara de segmentación ground-truth**:
+- Calcular **IoU entre mapa de saliencia y máscara disponible**, con interpretación diferenciada:
   - Binarizar saliencia (threshold) → comparar con máscara
-  - Reportar IoU medio por método XAI
-- Esto mide si el modelo "mira donde debe" → alineación clínica
-- Comparar: ¿Grad-CAM, SHAP o LIME se alinean mejor con las lesiones reales?
+  - CXR: saliencia vs máscara pulmonar → mide si el modelo atiende al área anatómica relevante, no a lesiones COVID
+  - CT: saliencia vs máscara de infección → mide alineación con regiones patológicas anotadas
+  - Reportar IoU medio por método XAI y por modalidad
+- Interpretación clave: en CXR, una alta superposición con pulmón no demuestra localización de lesión; solo descarta parcialmente atención fuera del campo pulmonar.
+- Comparar si Grad-CAM se alinea de forma suficiente con la región disponible para cada modalidad.
 
 ### Paso 3.4: Análisis cualitativo
 - Seleccionar casos interesantes:
@@ -220,22 +224,26 @@ TFM que compara arquitecturas de deep learning (ResNet-50, DenseNet-121, Efficie
 - `notebooks/06_explainability.ipynb`
 
 **Verificación Fase 3:**
-- [ ] Los 3 métodos XAI generan visualizaciones coherentes
-- [ ] IoU saliencia-máscara calculado para al menos 100 imágenes
-- [ ] Tabla comparativa cuantitativa de los 3 métodos
+- [x] Grad-CAM genera visualizaciones coherentes para CXR y CT
+- [x] IoU saliencia-máscara calculado separando CXR-pulmón y CT-lesión
+- [x] Tabla cuantitativa Grad-CAM generada para CXR y CT
 
 ---
 
-## FASE 4 — Integración, Análisis y Redacción (Semanas 7-10: 9-30 junio)
+## FASE 4 — Integración, Análisis y Redacción (Semanas 14-19: 20 julio – 31 agosto)
 
-### Paso 4.1: Experimentos finales y consolidación (Semana 7)
+### Paso 4.1: Experimentos finales y consolidación (Semana 14)
 - Notebook `notebooks/07_final_analysis.ipynb`:
   - Tabla maestra con TODOS los resultados (clasificación + segmentación + XAI)
   - Análisis estadístico: intervalos de confianza, tests de significancia
   - Gráficos de resumen publicables (estilo paper)
   - Responder explícitamente cada RQ con evidencia
+- Notebook `notebooks/08_calibration_analysis.ipynb`:
+  - Análisis de calibración probabilística sin reentrenar modelos
+  - Reliability diagrams, ECE, Brier score y errores de alta confianza
+  - Discusión de si la confianza de los clasificadores refleja su fiabilidad real
 
-### Paso 4.2: Redacción de la memoria (Semanas 7-10)
+### Paso 4.2: Redacción de la memoria (Semanas 15-19)
 Estructura propuesta:
 
 1. **Introducción** (~5 páginas)
@@ -260,8 +268,9 @@ Estructura propuesta:
    - 3.4 Estrategia de transfer learning y fine-tuning
    - 3.5 Manejo del desbalanceo
    - 3.6 Métodos de explicabilidad
-   - 3.7 Métricas de evaluación
-   - 3.8 Diseño experimental
+   - 3.7 Calibración e incertidumbre probabilística
+   - 3.8 Métricas de evaluación
+   - 3.9 Diseño experimental
 
 4. **Resultados** (~20 páginas)
    - 4.1 EDA y análisis de datos
@@ -269,9 +278,10 @@ Estructura propuesta:
    - 4.3 Clasificación CT: comparativa de arquitecturas
    - 4.4 Análisis cross-modal
    - 4.5 Impacto del manejo de desbalanceo
-   - 4.6 Segmentación de lesiones
+   - 4.6 Segmentación pulmonar en CXR y segmentación de lesiones en CT
    - 4.7 Análisis de explicabilidad
-   - 4.8 Evaluación cuantitativa XAI vs segmentación
+   - 4.8 Evaluación cuantitativa XAI vs máscaras disponibles
+   - 4.9 Calibración de los clasificadores y errores de alta confianza
 
 5. **Discusión** (~8 páginas)
    - Respuestas a las RQs
@@ -285,7 +295,7 @@ Estructura propuesta:
 
 8. **Anexos**: código relevante, resultados adicionales
 
-### Paso 4.3: Preparación de la defensa (última semana de junio)
+### Paso 4.3: Preparación de la defensa (última semana de agosto)
 - Presentación PowerPoint/Beamer (~20-25 slides)
 - Ensayo de la presentación (15-20 min)
 
@@ -301,16 +311,25 @@ Estructura propuesta:
 
 | Semana | Fechas | Fase | Entregable |
 |--------|--------|------|------------|
-| 1 | 20-27 abr | F0: Setup + EDA | Proyecto modular, EDA notebook |
-| 2 | 28 abr-4 may | F1: Clasificación CXR | Modelos CXR entrenados |
-| 3 | 5-11 may | F1: Clasificación CT + Resultados | Modelos CT, tablas comparativas |
-| 4 | 12-18 may | F2: Segmentación | U-Net entrenados |
-| 5 | 19-25 may | F2+F3: Segmentación eval + XAI inicio | Resultados segmentación, Grad-CAM |
-| 6 | 26 may-1 jun | F3: Explicabilidad completa | SHAP, LIME, evaluación cuantitativa |
-| 7 | 2-8 jun | F4: Análisis final + Redacción inicio | Notebook final, intro+SOTA |
-| 8 | 9-15 jun | F4: Redacción | Metodología + Resultados |
-| 9 | 16-22 jun | F4: Redacción | Discusión + Conclusiones |
-| 10 | 23-30 jun | F4: Revisión + Defensa | Memoria final + presentación |
+| 1 | 20-26 abr | F0: Setup | Proyecto modular inicial |
+| 2 | 27 abr-3 may | F0: EDA + preprocesamiento | EDA notebook, splits CXR, pipeline CT validado |
+| 3 | 4-10 may | F1: Preparación clasificación | DataLoaders verificados, baseline listo |
+| 4 | 11-17 may | F1: Clasificación CXR baseline | Primer modelo CXR entrenado y evaluado |
+| 5 | 18-24 may | F1: Clasificación CXR completa | ResNet/DenseNet/EfficientNet en CXR |
+| 6 | 25-31 may | F1: CT preprocessing + baseline | Slices CT generados, primer modelo CT |
+| 7 | 1-7 jun | F1: Clasificación CT completa | ResNet/DenseNet/EfficientNet en CT |
+| 8 | 8-14 jun | F1: Desbalanceo | Ablation baseline vs weighted CE vs focal/oversampling |
+| 9 | 15-21 jun | F1: Resultados clasificación | Tablas, matrices, ROC, análisis de errores |
+| 10 | 22-28 jun | F2: Segmentación setup | Dataset segmentación, U-Net/Attention U-Net |
+| 11 | 29 jun-5 jul | F2: Segmentación entrenamiento/eval | Métricas Dice/IoU y visualizaciones |
+| 12 | 6-12 jul | F3: Grad-CAM | Mapas Grad-CAM para mejores modelos |
+| 13 | 13-19 jul | F3: Evaluación XAI | Grad-CAM y saliencia vs máscaras disponibles |
+| 14 | 20-26 jul | F4: Análisis final | Notebook final, estadística, respuesta a RQs |
+| 15 | 27 jul-2 ago | F4: Redacción | Introducción + Estado del Arte |
+| 16 | 3-9 ago | F4: Redacción | Metodología + Resultados |
+| 17 | 10-16 ago | F4: Redacción | Discusión + Conclusiones |
+| 18 | 17-23 ago | F4: Revisión | Memoria revisada, repo y anexos cerrados |
+| 19 | 24-31 ago | F4: Defensa | Memoria final + presentación |
 
 ---
 
@@ -344,17 +363,19 @@ Estructura propuesta:
 
 **Incluido:**
 - Clasificación multi-clase con 3 arquitecturas × 2 datasets × 3 estrategias balanceo
-- Segmentación con U-Net y Attention U-Net × 2 datasets
-- Explicabilidad con Grad-CAM, SHAP, LIME + evaluación cuantitativa
-- Análisis cross-modal controlado
+- Segmentación con U-Net y Attention U-Net en dos tareas distintas: pulmón en CXR y lesión/infección en CT
+- Explicabilidad con Grad-CAM + evaluación cuantitativa contra máscaras disponibles
+- Análisis cross-modal controlado, interpretado como comparación metodológica y no como equivalencia clínica directa entre etiquetas CXR y severidades CT
 - Manejo del desbalanceo de clases
 
-**Excluido deliberadamente (para mantener alcance realista en 10 semanas):**
+**Excluido deliberadamente (para mantener alcance realista hasta finales de agosto):**
 - Enfoques 3D volumétricos (requieren mucha más GPU y tiempo)
+- LIME/SHAP como experimentos principales (se dejan como extensión opcional por dependencias, coste computacional y alcance)
 - Multi-task learning (clasificación + segmentación simultánea) — mencionado como trabajo futuro
 - Modelos generativos (GANs) para augmentación
 - Validación clínica con radiólogos
 - Deployment/aplicación web
+- Afirmar localización de lesiones en CXR usando máscaras pulmonares; esas máscaras solo permiten evaluar atención dentro/fuera del campo pulmonar
 
 **Decisiones técnicas:**
 - Merge CT-3 + CT-4 en una sola clase (CT-4 solo tiene 2 estudios → inviable estadísticamente)

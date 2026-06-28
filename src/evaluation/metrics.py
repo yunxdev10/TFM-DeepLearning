@@ -2,6 +2,7 @@ import torch
 import numpy as np
 from sklearn.metrics import accuracy_score, f1_score, roc_auc_score, confusion_matrix, classification_report
 from typing import Dict, List, Any
+from torch.utils.data import DataLoader
 
 def compute_classification_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_prob: np.ndarray = None) -> Dict[str, Any]:
     """
@@ -33,3 +34,30 @@ def compute_classification_metrics(y_true: np.ndarray, y_pred: np.ndarray, y_pro
     metrics['classification_report'] = classification_report(y_true, y_pred, zero_division=0, output_dict=True)
     
     return metrics
+
+def predict_classification(model: torch.nn.Module, dataloader: DataLoader, device: str) -> Dict[str, np.ndarray]:
+    """
+    Runs inference over a classification dataloader and returns labels,
+    predicted classes, and class probabilities.
+    """
+    model.eval()
+    y_true = []
+    y_pred = []
+    y_prob = []
+
+    with torch.no_grad():
+        for inputs, labels in dataloader:
+            inputs = inputs.to(device)
+            outputs = model(inputs)
+            probabilities = torch.softmax(outputs, dim=1)
+            predictions = torch.argmax(probabilities, dim=1)
+
+            y_true.extend(labels.cpu().numpy())
+            y_pred.extend(predictions.cpu().numpy())
+            y_prob.extend(probabilities.cpu().numpy())
+
+    return {
+        'y_true': np.array(y_true),
+        'y_pred': np.array(y_pred),
+        'y_prob': np.array(y_prob),
+    }

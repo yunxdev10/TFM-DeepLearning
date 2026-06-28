@@ -3,8 +3,31 @@ import torch.nn as nn
 from torchvision.models import (
     resnet50, ResNet50_Weights,
     densenet121, DenseNet121_Weights,
-    efficientnet_b0, EfficientNet_B0_Weights
+    efficientnet_b0, EfficientNet_B0_Weights,
+    efficientnet_v2_s, EfficientNet_V2_S_Weights,
+    convnext_tiny, ConvNeXt_Tiny_Weights,
 )
+
+ARCHITECTURE_ALIASES = {
+    "resnet": "resnet50",
+    "resnet-50": "resnet50",
+    "resnet50": "resnet50",
+    "densenet": "densenet121",
+    "densenet-121": "densenet121",
+    "densenet121": "densenet121",
+    "efficientnet": "efficientnet_b0",
+    "efficientnet-b0": "efficientnet_b0",
+    "efficientnet_b0": "efficientnet_b0",
+    "efficientnetv2": "efficientnet_v2_s",
+    "efficientnet-v2": "efficientnet_v2_s",
+    "efficientnet-v2-s": "efficientnet_v2_s",
+    "efficientnet_v2": "efficientnet_v2_s",
+    "efficientnet_v2_s": "efficientnet_v2_s",
+    "convnext": "convnext_tiny",
+    "convnext-tiny": "convnext_tiny",
+    "convnext_tiny": "convnext_tiny",
+}
+
 
 class CovidClassifier(nn.Module):
     """
@@ -14,7 +37,7 @@ class CovidClassifier(nn.Module):
     def __init__(self, architecture_name: str, num_classes: int, in_channels: int = 3, pretrained: bool = True):
         super(CovidClassifier, self).__init__()
         
-        self.architecture_name = architecture_name.lower()
+        self.architecture_name = ARCHITECTURE_ALIASES.get(architecture_name.lower(), architecture_name.lower())
         self.num_classes = num_classes
         self.in_channels = in_channels
         
@@ -49,6 +72,26 @@ class CovidClassifier(nn.Module):
                 
             num_ftrs = self.model.classifier[1].in_features
             self.model.classifier[1] = nn.Linear(num_ftrs, num_classes)
+
+        elif self.architecture_name == 'efficientnet_v2_s':
+            weights = EfficientNet_V2_S_Weights.DEFAULT if pretrained else None
+            self.model = efficientnet_v2_s(weights=weights)
+
+            if self.in_channels != 3:
+                self.model.features[0][0] = self._adapt_first_conv(self.model.features[0][0], in_channels)
+
+            num_ftrs = self.model.classifier[1].in_features
+            self.model.classifier[1] = nn.Linear(num_ftrs, num_classes)
+
+        elif self.architecture_name == 'convnext_tiny':
+            weights = ConvNeXt_Tiny_Weights.DEFAULT if pretrained else None
+            self.model = convnext_tiny(weights=weights)
+
+            if self.in_channels != 3:
+                self.model.features[0][0] = self._adapt_first_conv(self.model.features[0][0], in_channels)
+
+            num_ftrs = self.model.classifier[2].in_features
+            self.model.classifier[2] = nn.Linear(num_ftrs, num_classes)
             
         else:
             raise ValueError(f"Architecture {architecture_name} is not supported.")
@@ -67,11 +110,11 @@ class CovidClassifier(nn.Module):
             bias=(conv_layer.bias is not None)
         )
         
-        # If we are adapting from 3 channels to 1 (e.g., CT scans), we can sum the weights
+        # If we are adapting from 3 channels to 1 (e.g., CT scans), we average the weights
         # across the channel dimension to preserve the learned feature extraction.
         if conv_layer.in_channels == 3 and in_channels == 1:
             with torch.no_grad():
-                new_conv.weight[:] = torch.sum(conv_layer.weight, dim=1, keepdim=True)
+                new_conv.weight[:] = torch.mean(conv_layer.weight, dim=1, keepdim=True)
                 if new_conv.bias is not None:
                     new_conv.bias[:] = conv_layer.bias
         
@@ -92,7 +135,10 @@ class CovidClassifier(nn.Module):
         elif self.architecture_name == 'densenet121':
             for param in self.model.classifier.parameters():
                 param.requires_grad = True
-        elif self.architecture_name == 'efficientnet_b0':
+        elif self.architecture_name in {'efficientnet_b0', 'efficientnet_v2_s'}:
+            for param in self.model.classifier.parameters():
+                param.requires_grad = True
+        elif self.architecture_name == 'convnext_tiny':
             for param in self.model.classifier.parameters():
                 param.requires_grad = True
 
@@ -100,3 +146,15 @@ class CovidClassifier(nn.Module):
         """Unfreezes all layers for fine-tuning."""
         for param in self.model.parameters():
             param.requires_grad = True
+
+    def classifier_parameters(self):
+        """Returns trainable parameters for the final classification head."""
+        if self.architecture_name == 'resnet50':
+            return self.model.fc.parameters()
+        if self.architecture_name == 'densenet121':
+            return self.model.classifier.parameters()
+        if self.architecture_name in {'efficientnet_b0', 'efficientnet_v2_s'}:
+            return self.model.classifier.parameters()
+        if self.architecture_name == 'convnext_tiny':
+            return self.model.classifier.parameters()
+        raise ValueError(f"Architecture {self.architecture_name} is not supported.")

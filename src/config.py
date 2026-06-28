@@ -31,6 +31,13 @@ class Config:
     # Input Image Dimensions
     CXR_IMAGE_SIZE: tuple = (224, 224)
     CT_IMAGE_SIZE: tuple = (256, 256)
+
+    # Segmentation Hyperparameters
+    SEGMENTATION_BATCH_SIZE: int = 8
+    SEGMENTATION_LEARNING_RATE: float = 1e-4
+    SEGMENTATION_WEIGHT_DECAY: float = 1e-5
+    SEGMENTATION_EPOCHS: int = 30
+    SEGMENTATION_EARLY_STOPPING_PATIENCE: int = 6
     
     # Random Seed for Reproducibility
     RANDOM_SEED: int = 42

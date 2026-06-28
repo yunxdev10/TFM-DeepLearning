@@ -26,9 +26,17 @@ data/*
 !data/.gitkeep
 models/*
 !models/.gitkeep
+results/*
+!results/.gitkeep
+Imagenes de TFM/
 
 # IDEs
 .idea/
 .vscode/
 *.swp
 *.swo
+.omx/
+.cache/
+.tmp_pdf_review/
+.matplotlib_cache/
+results/.matplotlib/
